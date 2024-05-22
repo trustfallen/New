@@ -134,7 +134,7 @@ end
 ```systemverilog
 module add_arr#(
  parameter DATA_WIDTH=32,
- parameter N = 16 // на самом деле оно очень большое
+ parameter N = 9999999 
  )
 (
 input   logic                   iEN,
@@ -151,8 +151,8 @@ output logic                    oFPA_DATA_VALID
 
 
     );
-    
-    
+
+// Вспомогательные "провода"
 logic [31:0] FULL_RESULT;
 logic [31:0] FP_NUMBER2;
 logic [31:0] OLD_RESULT;
@@ -160,6 +160,7 @@ logic [31:0] FP_NUMBER1;
 logic [31:0] i1;
 logic [31:0] i2;
 
+// Подключение АЛУ
 Main m(
 .n1(FP_NUMBER1),
 .n2(FP_NUMBER2),
@@ -171,29 +172,32 @@ Main m(
 
 );
 
+// Регистры для промежуточных результатов
 logic [31:0] DUO_SUM [N/2:0];
 
 always@ (posedge iCLK | iNRESET) begin
    
-    if (~iNRESET) begin  i1 = 0; i2 = 0; FP_NUMBER2 = 0; OLD_RESULT = 0; end
+    if (~iNRESET) begin  i1 = 0; i2 = 0; FP_NUMBER1 = 0;FP_NUMBER2 = 0; OLD_RESULT = 0; oFPA_DATA_VALID <= 0; end
     else if (iEN) begin
          if (i1 <= N/2) begin
-                FP_NUMBER1      = iFPA_NUMBERS[i1];
-                FP_NUMBER2      = iFPA_NUMBERS[i1+1];
-                DUO_SUM[i1/2]   = FULL_RESULT;
-                i1 = i1 + 2;
+                FP_NUMBER1      = iFPA_NUMBERS[i1]; // На первый вход АЛУ подаем элементы исходного массива с четными индексами
+                FP_NUMBER2      = iFPA_NUMBERS[i1+1]; // На второй вход АЛУ подаем элементы исходного массива с нечетными индексами
+                DUO_SUM[i1/2]   = FULL_RESULT; 	// Записываем результат во временный регистр
+                i1 = i1 + 2;	//Итеррируем на 2 чтобы складывать попарно
          end
-        
-        FP_NUMBER1 = DUO_SUM[i2]; 
-        FP_NUMBER2 = OLD_RESULT;
-       
-        OLD_RESULT = FULL_RESULT;
-        
-         i2 = i2 + 1;         
+             else begin // Когда нашли суммы всех пар
 
-         if(i2 == N/2) begin
-        oFPA_DATA_VALID <= 1;
-        oFPA_RESULT <= FULL_RESULT;
+                FP_NUMBER1 = DUO_SUM[i2]; // На первый вход АЛУ подаем элемент массива сумм пар первого массива
+                FP_NUMBER2 = OLD_RESULT; // На второй вход АЛУ подаем результат прошлого суммирования(для 0 элемента это 0)
+       
+                OLD_RESULT = FULL_RESULT; // Сохраняем старый результат, чтобы использовать его на следующей итерации в новом
+        
+                i2 = i2 + 1;         // Следующая итерация
+
+                if(i2 == N/2) begin // Досчитали до массива сумм
+                    oFPA_DATA_VALID <= 1; // Говорим, что данные валидны
+                    oFPA_RESULT <= FULL_RESULT; // Подаем данные на выход
+        end
         end
     end
     
@@ -206,7 +210,7 @@ endmodule
 ```
 Тестбенч для проверки модулей
 
-```
+```systemverilog
 module add_arr_tb#(
  parameter DATA_WIDTH=32,
  parameter N = 9, //очень большое
@@ -256,9 +260,27 @@ end
 EN = 1;
 
 wait(FPA_DATA_VALID);
-display("The sum is: ", FPA_RESULT);
+//TO_DO Реализовать логику проверки
+// if(sum(float32 FPA_NUMBERS) != FPA_RESULT)  $display(!!!ERROR!!!);
+//
+$display("The sum is: ", FPA_RESULT);
 $finish;
 end
  
 endmodule
 ```
+## Необходимо упомянуть 
+![image](https://github.com/trustfallen/New/assets/170412908/e85bc1c9-eb4e-4bef-928c-37a5f4449e46)
+При работе с арифметичекими опеарциях с числами с плавающей точкой необходимо помнить про такие вещи как: мантисса, порядок числа, округление, сдвиг, машинная ошибка и т.д  
+
+Для выполнения сложения двух таких чисел необходимо выполнить следующие шаги:
+1. Выделить биты порядка и мантиссы.
+2. Присоединить неявную старшую единицу к мантиссе.
+3. Сравнить порядки.
+4. При необходимости сдвинуть мантиссу числа, имеющего меньший порядок.
+5. Сложить мантиссы.
+6. При необходимости нормализовать мантиссу и порядок.
+7. Округлить результат.
+8. Собрать обратно порядок и мантиссу в итоговое число с плавающей точкой.
+
+Необходимо помнить, что, например, перед тем как два числа будут сложены, они должны быть приведены к единому порядку, а то, что при сложении выйдет за мантиссу будет отброшено. Таким образом, было бы хорошим тоном перед поэлементном сложении массива упорядочить  его по возрастанию. Числа с похожими порядками будут стоять рядом, что уменьшит количество округлений, свдигов и ошибок. 
