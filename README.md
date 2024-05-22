@@ -177,7 +177,7 @@ logic [31:0] DUO_SUM [N/2:0];
 
 always@ (posedge iCLK | iNRESET) begin
    
-    if (~iNRESET) begin  i1 = 0; i2 = 0; FP_NUMBER1 = 0;FP_NUMBER2 = 0; OLD_RESULT = 0; oFPA_DATA_VALID <= 0; end
+    if (~iNRESET) begin  i1 = 0; i2 = 0; FP_NUMBER2 = 1; FP_NUMBER2 = 0; OLD_RESULT = 0; FULL_RESULT = 0; OLD_RESULT = 0;  end
     else if (iEN) begin
          if (i1 <= N/2) begin
                 FP_NUMBER1      = iFPA_NUMBERS[i1]; // На первый вход АЛУ подаем элементы исходного массива с четными индексами
