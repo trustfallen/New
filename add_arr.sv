@@ -1,7 +1,6 @@
 module add_arr#(
  parameter DATA_WIDTH=32,
- parameter N = 16 //очень большое
- )
+ parameter N = 16 
 (
 input   logic                   iEN,
 input   logic                   iCLK,
@@ -41,7 +40,7 @@ Main m(
 
 logic [31:0] DUO_SUM [N/2:0];
 
-always@ (posedge iCLK | iNRESET) begin // каждый положительный фронт CLK 
+always@ (posedge iCLK | iNRESET) begin 
    
     if (~iNRESET) begin  i1 = 0; i2 = 0; FP_NUMBER2 = 1; FP_NUMBER2 = 0; OLD_RESULT = 0; FULL_RESULT = 0; OLD_RESULT = 0; end 
     else if (iEN) begin
